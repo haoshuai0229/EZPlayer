@@ -30,7 +30,7 @@ public extension AVAsset {
         var closedCaptions = [AVMediaSelectionOption]()
         if let mediaSelectionGroup = self.mediaSelectionGroup(forMediaCharacteristic: AVMediaCharacteristic.legible){
             for option in mediaSelectionGroup.options {
-                if option.mediaType == "clcp" {
+                if option.mediaType.rawValue == "clcp" {
                     closedCaptions.append(option)
                 }
             }

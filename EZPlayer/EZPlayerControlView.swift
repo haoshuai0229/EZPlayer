@@ -67,8 +67,6 @@ open class EZPlayerControlView: UIView{
 
         self.audioSubtitleCCButtonWidthConstraint.constant = 0
 
-
-
         self.autohidedControlViews = [self.navBarContainer,self.toolBarContainer]
         //        self.tapGesture = UITapGestureRecognizer(target: self, action: #selector(self.tapGestureTapped(_:)))
         //        self.tapGesture.delegate = self
@@ -84,8 +82,6 @@ open class EZPlayerControlView: UIView{
         airplayView.setRouteButtonImage(airplayImage, for: .normal)
         self.airplayContainer.addSubview(airplayView)
         //        self.loading.start()
-
-
     }
 
     // MARK: - EZPlayerCustomControlView
@@ -144,8 +140,7 @@ open class EZPlayerControlView: UIView{
         }
         self.player(player, progressDidChange: TimeInterval(self.timeSlider.value))
     }
-
-
+    
     //    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool{
     //        self.autohideControlView()
     //        return !self.autohidedControlViews.contains(touch.view!) && !self.autohidedControlViews.contains(touch.view!.superview!)
@@ -211,7 +206,7 @@ open class EZPlayerControlView: UIView{
                 self.autohideControlView()
                 UIView.setAnimationsEnabled(true)
             })
-        }else{
+        } else {
             self.autohidedControlViews.forEach{
                 $0.isHidden = false
                 $0.alpha = 1
@@ -286,8 +281,6 @@ extension EZPlayerControlView: EZPlayerCustom {
         })
     }
 
-
-
     @IBAction public func backButtonPressed(_ sender: Any) {
         guard let player = self.player else {
             return
@@ -348,7 +341,7 @@ extension EZPlayerControlView: EZPlayerCustom {
     // MARK: - EZPlayerDelegate
 
     public func playerHeartbeat(_ player: EZPlayer) {
-        if let asset = player.playerasset, let  playerIntem = player.playerItem ,playerIntem.status == .readyToPlay{
+        if let asset = player.playerAsset, let  playerIntem = player.playerItem ,playerIntem.status == .readyToPlay{
             if asset.audios != nil || asset.subtitles != nil || asset.closedCaption != nil{
                 self.audioSubtitleCCButtonWidthConstraint.constant = 50
             }else{
@@ -357,7 +350,6 @@ extension EZPlayerControlView: EZPlayerCustom {
         }
         self.airplayContainer.isHidden = !player.allowsExternalPlayback
     }
-
 
     public func player(_ player: EZPlayer, playerDisplayModeDidChange displayMode: EZPlayerDisplayMode) {
         switch displayMode {
@@ -394,8 +386,6 @@ extension EZPlayerControlView: EZPlayerCustom {
 
         }
 
-
-
         //        switch state {
         //        case  .playing ,.pause,.seekingForward,.seekingBackward,.stopped,.bufferFinished:
         //            self.loading.stop()
@@ -422,7 +412,7 @@ extension EZPlayerControlView: EZPlayerCustom {
         self.timeSlider.isEnabled = !duration.isNaN
         self.timeSlider.minimumValue = 0
         self.timeSlider.maximumValue = duration.isNaN ? Float(currentTime) : Float(duration)
-        self.titleLabel.text = player.contentItem?.title ?? player.playerasset?.title
+        self.titleLabel.text = player.contentItem?.title ?? player.playerAsset?.title
         if !self.isProgressSliderSliding {
             self.timeSlider.value = Float(currentTime)
             self.timeLabel.text = duration.isNaN ? "Live" : EZPlayerUtils.formatTime(position: currentTime, duration: duration)
@@ -446,6 +436,4 @@ extension EZPlayerControlView: EZPlayerCustom {
             self.loading.stop()
         }
     }
-
-
 }

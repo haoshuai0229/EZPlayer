@@ -9,9 +9,12 @@
 import UIKit
 import EZPlayer
 class MediaManager {
-     var player: EZPlayer?
-     var mediaItem: MediaItem?
-     var embeddedContentView: UIView?
+    
+    var player: EZPlayer?
+    
+    var mediaItem: MediaItem?
+    
+    var embeddedContentView: UIView?
 
     static let sharedInstance = MediaManager()
     private init(){
@@ -68,13 +71,13 @@ class MediaManager {
 
 
     func releasePlayer(){
-            self.player?.stop()
-            self.player?.view.removeFromSuperview()
+        
+        self.player?.stop()
+        self.player?.view.removeFromSuperview()
         
         self.player = nil
         self.embeddedContentView = nil
         self.mediaItem = nil
-
     }
     
     @objc  func playerDidPlayToEnd(_ notifiaction: Notification) {

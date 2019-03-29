@@ -69,12 +69,19 @@ class ParamsViewController: UIViewController {
         }
     }
 
-
-
-
-
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         self.view.endEditing(true)
     }
+    
+    var cancelableTask: Task?
 
+    @IBAction func testTheDelayFunction(_ sender: UIBarButtonItem) {
+        cancelableTask = delay(10) {
+            print("---- delay completed ----")
+        }
+    }
+    
+    @IBAction func cancelTheDelayTask(_ sender: UIBarButtonItem) {
+        cancelableTask?(true)
+    }
 }

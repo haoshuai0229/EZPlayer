@@ -54,9 +54,9 @@ open class EZPlayerAudibleLegibleViewController: UIViewController {
 
 
         self.player = player
-        self.audios = self.player.playerasset?.audios
-        self.closedCaption = self.player.playerasset?.closedCaption
-        self.subtitles = self.player.playerasset?.subtitles
+        self.audios = self.player.playerAsset?.audios
+        self.closedCaption = self.player.playerAsset?.closedCaption
+        self.subtitles = self.player.playerAsset?.subtitles
 
 
         if let audios = self.audios ,audios.count > 0{
