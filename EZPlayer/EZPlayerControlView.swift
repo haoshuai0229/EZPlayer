@@ -400,12 +400,15 @@ extension EZPlayerControlView: EZPlayerCustom {
     public func player(_ player: EZPlayer, bufferDurationDidChange bufferDuration: TimeInterval, totalDuration: TimeInterval) {
         if totalDuration.isNaN || bufferDuration.isNaN || totalDuration == 0 || bufferDuration == 0{
             self.progressView.progress = 0
-        }else{
-        self.progressView.progress = Float(bufferDuration/totalDuration)
+        } else {
+            self.progressView.progress = Float(bufferDuration/totalDuration)
         }
     }
 
+    
     public func player(_ player: EZPlayer, currentTime: TimeInterval, duration: TimeInterval) {
+        
+//        printLog("current time = \(currentTime), duration = \(duration)")
         if currentTime.isNaN || (currentTime == 0 && duration.isNaN){
             return
         }
@@ -416,7 +419,6 @@ extension EZPlayerControlView: EZPlayerCustom {
         if !self.isProgressSliderSliding {
             self.timeSlider.value = Float(currentTime)
             self.timeLabel.text = duration.isNaN ? "Live" : EZPlayerUtils.formatTime(position: currentTime, duration: duration)
-
         }
     }
 

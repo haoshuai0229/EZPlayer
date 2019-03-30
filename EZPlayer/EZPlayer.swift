@@ -12,18 +12,25 @@ import AVFoundation
 
 public protocol EZPlayerDelegate: class {
     
+    /** player的状态变化回调 */
     func player(_ player: EZPlayer, playerStateDidChange state: EZPlayerState)
     
+    /** 播放器播放模式状态变化 */
     func player(_ player: EZPlayer, playerDisplayModeDidChange displayMode: EZPlayerDisplayMode)
     
+    /** 播放器控制视图显示/隐藏状态有变化 */
     func player(_ player: EZPlayer, playerControlsHiddenDidChange controlsHidden: Bool, animated: Bool)
     
+    /** 监听 AVPlayerItem.loadedTimeRanges 变化时, 返回最新的缓冲进度 和 视频总时间 */
     func player(_ player: EZPlayer, bufferDurationDidChange bufferDuration: TimeInterval, totalDuration: TimeInterval)
     
+    /** 每隔 EZPlayerHeartbeatDuration 返回播放器当前时间和总时间 */
     func player(_ player: EZPlayer, currentTime: TimeInterval, duration: TimeInterval)
     
+    /** player 心跳回调 */
     func playerHeartbeat(_ player: EZPlayer )
     
+    /** 是否显示 loading 视图 */
     func player(_ player: EZPlayer, showLoading: Bool)
     
 //    func bmPlayer(player: BMPlayerLayerView, playerIsPlaying playing: Bool)
@@ -972,7 +979,7 @@ open class EZPlayer: NSObject {
         
         self.timer?.invalidate()
         self.timer = nil
-        self.timer = Timer.timerWithTimeInterval(50, block: { [weak self] in
+        self.timer = Timer.timerWithTimeInterval( EZPlayerHeartbeatDuration, block: { [weak self] in
             
             guard let weakSelf = self, let _ = weakSelf.player, let playerItem = weakSelf.playerItem else { return }
             
@@ -1031,37 +1038,38 @@ open class EZPlayer: NSObject {
         (self.controlView as? EZPlayerDelegate)?.player(self, showLoading: true)
         
         self.delegate?.player(self, showLoading: true)
-        
         NotificationCenter.default.post(name: .EZPlayerLoadingDidChange, object: self, userInfo: [Notification.Key.EZPlayerLoadingDidChangeKey: true])
         
         self.addPlayerItemTimeObserver()
     }
     
-    
-    private func addPlayerItemTimeObserver(){
-        self.timeObserver = self.player?.addPeriodicTimeObserver(forInterval: CMTimeMakeWithSeconds(0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), queue: DispatchQueue.main, using: {  [weak self] time in
-            guard let weakSelf = self else {
-                return
-            }
+    private func addPlayerItemTimeObserver() {
+        
+        // addPeriodicTimeObserver 对应的必须要移除，必须掉用 removeTimeObserver
+        self.timeObserver = self.player?.addPeriodicTimeObserver(forInterval: CMTimeMakeWithSeconds(0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), queue: DispatchQueue.main, using: { [weak self] time in
+            guard let weakSelf = self else { return }
             
             (weakSelf.controlView as? EZPlayerDelegate)?.player(weakSelf, currentTime: weakSelf.currentTime ?? 0, duration: weakSelf.duration ?? 0)
+            
             weakSelf.delegate?.player(weakSelf, currentTime: weakSelf.currentTime ?? 0, duration: weakSelf.duration ?? 0)
             NotificationCenter.default.post(name: .EZPlayerPlaybackTimeDidChange, object: self, userInfo:nil)
-            
         })
     }
     
-    private func  resetPlayerResource() {
+    private func resetPlayerResource() {
+        
         self.contentItem = nil
         self.contentURL = nil
         
         if self.videoOutput != nil {
             self.playerItem?.remove(self.videoOutput!)
         }
+        
         self.videoOutput = nil
         
         self.playerAsset = nil
         self.playerItem = nil
+        
         self.player?.replaceCurrentItem(with: nil)
         
         self.playerView?.layer.removeAllAnimations()
@@ -1071,6 +1079,7 @@ open class EZPlayer: NSObject {
         
         (self.controlView as? EZPlayerDelegate)?.player(self, currentTime:0, duration: 0)
         self.delegate?.player(self, currentTime: 0, duration: 0)
+        
         NotificationCenter.default.post(name: .EZPlayerPlaybackTimeDidChange, object: self, userInfo:nil)
     }
     
@@ -1082,7 +1091,7 @@ open class EZPlayer: NSObject {
             })
         }
         
-        #warning("这里可能会频繁添加观察者移除观察者")
+        //TODO: scrollView可能会频繁添加观察者移除观察者, 酌情考虑是否优化
         self.scrollView = nil
         self.indexPath = nil
         
@@ -1093,6 +1102,7 @@ open class EZPlayer: NSObject {
         
         self.playerAsset = nil
         self.playerItem = nil
+        
         self.player?.replaceCurrentItem(with: nil)
         self.playerView?.layer.removeAllAnimations()
         self.playerView?.removeFromSuperview()
@@ -1102,7 +1112,6 @@ open class EZPlayer: NSObject {
             self.player?.removeTimeObserver(self.timeObserver!)
             self.timeObserver = nil
         }
-        
     }
 }
 
@@ -1110,16 +1119,16 @@ open class EZPlayer: NSObject {
 extension EZPlayer {
     
     @objc fileprivate func playerDidPlayToEnd(_ notifiaction: Notification) {
-        
         self.state = .stopped
         NotificationCenter.default.post(name: .EZPlayerPlaybackDidFinish, object: self, userInfo: [Notification.Key.EZPlayerPlaybackDidFinishReasonKey: EZPlayerPlaybackDidFinishReason.playbackEndTime])
     }
     
-    @objc fileprivate  func deviceOrientationDidChange(_ notifiaction: Notification){
-        //        if !self.autoLandscapeFullScreenLandscape || self.embeddedContentView == nil{
+    @objc fileprivate  func deviceOrientationDidChange(_ notifiaction: Notification) {
+        
         if !self.autoLandscapeFullScreenLandscape || self.fullScreenMode == .portrait {
             return
         }
+        
         switch UIDevice.current.orientation {
         case .portrait:
             if self.lastDisplayMode == .embedded{
@@ -1134,24 +1143,21 @@ extension EZPlayer {
         default:
             break
         }
-        
+    }
+    
+    @objc fileprivate  func applicationWillEnterForeground(_ notifiaction: Notification) {
         
     }
     
-    @objc fileprivate  func applicationWillEnterForeground(_ notifiaction: Notification){
+    @objc fileprivate  func applicationDidBecomeActive(_ notifiaction: Notification) {
         
     }
     
-    @objc fileprivate  func applicationDidBecomeActive(_ notifiaction: Notification){
+    @objc fileprivate  func applicationWillResignActive(_ notifiaction: Notification) {
         
     }
     
-    
-    @objc fileprivate  func applicationWillResignActive(_ notifiaction: Notification){
-        
-    }
-    
-    @objc fileprivate  func applicationDidEnterBackground(_ notifiaction: Notification){
+    @objc fileprivate  func applicationDidEnterBackground(_ notifiaction: Notification) {
         
     }
 }
@@ -1159,6 +1165,8 @@ extension EZPlayer {
 // MARK: - KVO
 
 extension EZPlayer {
+    
+    // 监听的回调，
     override open func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if let item = object as? AVPlayerItem, let keyPath = keyPath {
             if item == self.playerItem {
@@ -1180,7 +1188,7 @@ extension EZPlayer {
                     }
                     
                 case #keyPath(AVPlayerItem.loadedTimeRanges):
-//                    printLog("AVPlayerItem's loadedTimeRanges is changed")
+                    printLog("AVPlayerItem's loadedTimeRanges is changed")
                     (self.controlView as? EZPlayerDelegate)?.player(self, bufferDurationDidChange: item.bufferDuration ?? 0, totalDuration: self.duration ?? 0)
                     self.delegate?.player(self, bufferDurationDidChange: item.bufferDuration ?? 0, totalDuration: self.duration ?? 0)
                 case #keyPath(AVPlayerItem.playbackBufferEmpty):
@@ -1191,29 +1199,29 @@ extension EZPlayer {
                     break
                 }
             }
-        }else if let view = object as? UITableView ,let keyPath = keyPath{
+        } else if let view = object as? UITableView ,let keyPath = keyPath {
             switch keyPath {
             case #keyPath(UITableView.contentOffset):
                 if view == self.scrollView {
                     if let index = self.indexPath {
                         let cellrectInTable = view.rectForRow(at: index)
                         let cellrectInTableSuperView =  view.convert(cellrectInTable, to: view.superview)
-                        if cellrectInTableSuperView.origin.y + cellrectInTableSuperView.size.height/2 < view.frame.origin.y + view.contentInset.top || cellrectInTableSuperView.origin.y + cellrectInTableSuperView.size.height/2 > view.frame.origin.y + view.frame.size.height - view.contentInset.bottom{
+                        if cellrectInTableSuperView.origin.y + cellrectInTableSuperView.size.height/2 < view.frame.origin.y + view.contentInset.top || cellrectInTableSuperView.origin.y + cellrectInTableSuperView.size.height/2 > view.frame.origin.y + view.frame.size.height - view.contentInset.bottom {
                             self.toFloat()
-                        }else{
-                            if let cell = view.cellForRow(at: index){
-                                if  !cell.contentView.subviews.contains(self.view){
+                        } else {
+                            if let cell = view.cellForRow(at: index) {
+                                if  !cell.contentView.subviews.contains(self.view) {
                                     self.view.removeFromSuperview()
                                     cell.contentView.addSubview( self.view)
                                     self.embeddedContentView = cell.contentView
                                 }
-                                self.toEmbedded(animated: false, completion: { flag in
-                                })
+                            self.toEmbedded(animated: false, completion: { flag in
+                                
+                            })
                             }
                         }
                     }
                 }
-                
             default:
                 break
             }
@@ -1224,7 +1232,7 @@ extension EZPlayer {
 // MARK: - display Mode
 extension EZPlayer {
     
-    /** 如果 floatContainerRootViewController 不存在，就初始化 floatContainerRootViewController; 如果 floatContainer 不存在，就初始化 floatContainer */
+    /** 如果 floatContainerRootViewController 不存在, 就初始化 floatContainerRootViewController; 如果 floatContainer 不存在，就初始化 floatContainer */
     private func configFloatContainerRootVCAndFloatContainer() {
         if self.floatContainerRootViewController == nil {
             self.floatContainerRootViewController = EZPlayerFloatContainerRootViewController(nibName: String(describing: EZPlayerFloatContainerRootViewController.self), bundle: Bundle(for: EZPlayerFloatContainerRootViewController.self))

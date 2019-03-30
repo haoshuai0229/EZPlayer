@@ -105,7 +105,7 @@ extension EZPlayerView: UIGestureRecognizerDelegate {
                 return  !customAction.autohidedControlViews.contains(touch.view!) && !customAction.autohidedControlViews.contains(touch.view!.superview!)
             }
         }else if self.panGesture == gestureRecognizer{
-            if player.displayMode == .float {//float模式不支持划动
+            if player.displayMode == .float { //float模式不支持划动
                 return false
             }
             if player.scrollView != nil && player.indexPath != nil && player.displayMode == .embedded{//嵌入模式且在列表中不支持
@@ -150,8 +150,8 @@ extension EZPlayerView {
         switch pan.state {
         case UIGestureRecognizer.State.began:
             
-            let x = fabs(velocityPoint.x)
-            let y = fabs(velocityPoint.y)
+            let x = abs(velocityPoint.x)
+            let y = abs(velocityPoint.y)
             
             if x > y {
                 
