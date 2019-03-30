@@ -12,7 +12,7 @@ import MediaPlayer
 // MARK: - 全局变量
 
 /// 动画时间
-public var EZPlayerAnimatedDuration = 0.3
+public var EZPlayerAnimatedDuration = 3.0
 
 public let EZPlayerErrorDomain = "EZPlayerErrorDomain"
 
@@ -122,7 +122,7 @@ public class EZPlayerUtils{
     ///  get current top viewController
     ///
     /// - Returns: current top viewController
-    public static func activityViewController() -> UIViewController?{
+    public static func activityViewController() -> UIViewController? {
         var result: UIViewController? = nil
         guard var window = UIApplication.shared.keyWindow else {
             return nil

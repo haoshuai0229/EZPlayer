@@ -11,6 +11,7 @@ let windowWidth = (UIScreen.main.bounds.size.width)
 let windowHight = (UIScreen.main.bounds.size.height)
 
 open class EZPlayerFloatContainer {
+    
     open private(set) var isShow = false
     // MARK: - Autorotation
     open var shouldAutorotate = true

@@ -91,7 +91,7 @@ open class EZPlayerControlView: UIView{
     fileprivate var isProgressSliderSliding = false {
         didSet{
             if !(self.player?.isM3U8 ?? true) {
-                //                self.videoshotPreview.isHidden = !isProgressSliderSliding
+//                                self.videoshotPreview.isHidden = !isProgressSliderSliding
             }
         }
 
@@ -327,7 +327,7 @@ extension EZPlayerControlView: EZPlayerCustom {
     }
 
     public func player(_ player: EZPlayer, progressDidChange value: TimeInterval) {
-        if player.isLive ?? true{
+        if player.isLive ?? true {
             return
         }
         self.autohideControlView()
@@ -424,7 +424,7 @@ extension EZPlayerControlView: EZPlayerCustom {
     public func player(_ player: EZPlayer, playerControlsHiddenDidChange controlsHidden: Bool, animated: Bool) {
         if controlsHidden {
             self.hideControlView(animated)
-        }else{
+        } else {
             self.showControlView(animated)
         }
     }

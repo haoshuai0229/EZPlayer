@@ -18,24 +18,24 @@ public protocol EZPlayerDelegate: class {
     
     func player(_ player: EZPlayer, playerControlsHiddenDidChange controlsHidden: Bool, animated: Bool)
     
-    func player(_ player: EZPlayer ,bufferDurationDidChange bufferDuration: TimeInterval, totalDuration: TimeInterval)
+    func player(_ player: EZPlayer, bufferDurationDidChange bufferDuration: TimeInterval, totalDuration: TimeInterval)
     
-    func player(_ player: EZPlayer ,currentTime: TimeInterval, duration: TimeInterval)
+    func player(_ player: EZPlayer, currentTime: TimeInterval, duration: TimeInterval)
     
     func playerHeartbeat(_ player: EZPlayer )
     
-    func player(_ player: EZPlayer ,showLoading: Bool)
+    func player(_ player: EZPlayer, showLoading: Bool)
     
 //    func bmPlayer(player: BMPlayerLayerView, playerIsPlaying playing: Bool)
 }
 
-/* 播放出错的原因 */
+/** 播放出错的原因 */
 public enum EZPlayerError: Error {
     case invalidContentURL         // 无效的URL
     case playerFail                // AVPlayer failed to load the asset.
 }
 
-/* 播放器的状态 */
+/** 播放器的状态 */
 public enum EZPlayerState {
     case unknown                   // 播放前
     case error(EZPlayerError)      // 出现错误
@@ -49,36 +49,36 @@ public enum EZPlayerState {
     case stopped                   // 播放结束
 }
 
-/* 视屏播放器的显示模式: 全屏, 浮窗, 嵌入在某个view */
+/** 视屏播放器的显示模式: 全屏, 浮窗, 嵌入在某个view */
 public enum EZPlayerDisplayMode {
-    case none
+    case none                      // 无
     case embedded                  // 嵌入到某个视图
     case fullscreen                // 全屏
     case float                     // 浮窗
 }
 
-/* 全屏状态的显示模式: 竖屏, 横屏 */
+/** 全屏状态的显示模式: 竖屏, 横屏 */
 public enum EZPlayerFullScreenMode {
     case portrait                  // 全屏模式竖屏
     case landscape                 // 全屏模式横屏
 }
 
-/* 播放结束的原因 */
+/** 播放结束的原因 */
 public enum EZPlayerPlaybackDidFinishReason {
     case playbackEndTime           // 正常播放完毕
     case playbackError             // 播放出错
     case stopByUser                // 用户终止
 }
 
-/* Slider 触发原因 */
+/** Slider 触发原因 */
 public enum EZPlayerSlideTrigger {
-    case none
+    case none                      // 无
     case volume                    // 音量触发
     case brightness                // 亮度触发
 }
 
 //TODO: 自定义视频比例 4:3
-/* 视频的填充模式 */
+/** 视频的填充模式 */
 public enum EZPlayerVideoGravity: String {
     case aspect = "AVLayerVideoGravityResizeAspect"           // 等比例填充,直到一个维度到达区域边界
     case aspectFill = "AVLayerVideoGravityResizeAspectFill"   // 等比例填充,直到填充满整个视图区域,其中一个维度的部分区域会被裁剪
@@ -94,7 +94,7 @@ public enum EZPlayerVideoGravity: String {
 
 open class EZPlayer: NSObject {
     
-    public static var showLog = true
+    public static var showLog = false
     
     open weak var delegate: EZPlayerDelegate?
     
@@ -180,6 +180,7 @@ open class EZPlayer: NSObject {
         didSet {
             if playerItem != oldValue {
                 if let item = playerItem {
+                    // 监听播放完成
                     NotificationCenter.default.addObserver(self, selector: #selector(self.playerDidPlayToEnd(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: playerItem)
                     item.addObserver(self, forKeyPath: #keyPath(AVPlayerItem.status), options: NSKeyValueObservingOptions.new, context: nil)
                     // 已经缓冲的片段的时间, loadedTimeRanges: [NSValue]
@@ -499,7 +500,7 @@ open class EZPlayer: NSObject {
         }
     }
     
-    //TODO: seek在跳转的平滑度上可进行优化 https://developer.apple.com/library/archive/qa/qa1820/_index.html
+//TODO: seek在跳转的平滑度上还是否需要进行优化 https://developer.apple.com/library/archive/qa/qa1820/_index.html
     open func seek(to time: TimeInterval, completionHandler: ((Bool) -> Swift.Void)? = nil){
         guard let player = self.player else { return }
         
@@ -513,39 +514,42 @@ open class EZPlayer: NSObject {
         }
         
         player.seek(to: CMTimeMakeWithSeconds(time, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), toleranceBefore: CMTime.zero, toleranceAfter: CMTime.zero, completionHandler: {  [weak self]  (finished) in
-            guard let weakSelf = self else {
-                return
-            }
+            guard let weakSelf = self else { return }
             switch (weakSelf.state) {
-            case .seekingBackward,.seekingForward:
+            // 快进快退状态的跳转,结束后使player的状态恢复到跳转前到状态, 例如 跳转前是暂停状态,跳转后还是暂停状态. 跳转前是播放状态,跳转后还是播放状态.
+            case .seekingBackward, .seekingForward:
                 weakSelf.state = lastState
             default: break
             }
             completionHandler?(finished)
         })
-        
     }
     
-    
     private var isChangingDisplayMode = false
-    open func toFull(_ orientation:UIDeviceOrientation = .landscapeLeft, animated: Bool = true ,completion: ((Bool) -> Swift.Void)? = nil) {
+    open func toFull(_ orientation: UIDeviceOrientation = .landscapeLeft, animated: Bool = false ,completion: ((Bool) -> Swift.Void)? = nil) {
+        
         if self.isChangingDisplayMode == true {
             completion?(false)
             return
         }
+        
         if self.displayMode == .fullscreen {
             completion?(false)
             return
         }
+        
         guard let activityViewController = EZPlayerUtils.activityViewController() else {
             completion?(false)
             return
         }
         
-        func __toFull(from view: UIView)  {
+        func __toFull(from view: UIView) {
             self.isChangingDisplayMode = true
+            
             self.updateCustomView(toDisplayMode: .fullscreen)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.fullscreen])
+            
             self.setControlsHidden(true, animated: false)
             
             self.fullScreenViewController = EZPlayerFullScreenViewController()
@@ -555,37 +559,53 @@ open class EZPlayer: NSObject {
             if animated {
 
                 let rect = view.convert(self.view.frame, to: activityViewController.view)
+                // TODO: 可以补上一张图解释 x， y 的用途
                 let x = activityViewController.view.bounds.size.width - rect.size.width - rect.origin.x
                 let y = activityViewController.view.bounds.size.height - rect.size.height - rect.origin.y
+                
                 activityViewController.present(self.fullScreenViewController!, animated: false, completion: {
+                    
                     self.view.removeFromSuperview()
+                    
+                    // fullScreenViewController 是横屏的, 所以该VC的坐标系跟竖屏不同的
+                    // 添加到VC的视图的坐标是横屏下的坐标, 视图的方向自动变为横屏时候的方向
                     self.fullScreenViewController!.view.addSubview(self.view)
                     self.fullScreenViewController!.view.sendSubviewToBack(self.view)
-                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape{
+                    
+                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape {
+
+                        // 旋转使 player.view 的视图方向 恢复和竖屏时候的视图方向一直
                         self.view.transform = CGAffineTransform(rotationAngle:orientation == .landscapeRight ? CGFloat(Double.pi / 2) : -CGFloat(Double.pi / 2))
-                        self.view.frame = orientation == .landscapeRight ?  CGRect(x:  y, y: rect.origin.x, width: rect.size.height, height: rect.size.width) : CGRect(x: rect.origin.y, y: x, width: rect.size.height, height: rect.size.width)
-                    }else{
+                        // 设置 player.view.frame 使其位置恢复到竖屏时候的播放器视图位置
+                        self.view.frame = orientation == .landscapeRight ? CGRect(x: y, y: rect.origin.x, width: rect.size.height, height: rect.size.width) : CGRect(x: rect.origin.y, y: x, width: rect.size.height, height: rect.size.width)
+                    } else {
                         self.view.frame = rect
                     }
                     
                     UIView.animate(withDuration: EZPlayerAnimatedDuration, animations: {
-                        if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape{
+                        
+                        if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape {
+                            // 恢复视图的方向, 即恢复为横屏模式应有的视图方向
                             self.view.transform = CGAffineTransform.identity
                         }
+                        // 设置 player.view.bounds 和 player.view.center 使其铺满VC
                         self.view.bounds = self.fullScreenViewController!.view.bounds
                         self.view.center = self.fullScreenViewController!.view.center
-                    }, completion: {finished in
+                    }, completion: { finished in
                         self.setControlsHidden(false, animated: true)
+                        // 旋转完成, 发送通知
                         NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedDidAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.fullscreen])
                         completion?(finished)
                         self.isChangingDisplayMode = false
-                        
-                        
                     })
                 })
-            }else{
+                
+            } else {
+                
                 activityViewController.present(self.fullScreenViewController!, animated: false, completion: {
+                    
                     self.view.removeFromSuperview()
+                    
                     self.fullScreenViewController!.view.addSubview(self.view)
                     self.fullScreenViewController!.view.sendSubviewToBack(self.view)
                     
@@ -593,35 +613,37 @@ open class EZPlayer: NSObject {
                     self.view.center = self.fullScreenViewController!.view.center
                     
                     self.setControlsHidden(false, animated: true)
+                    
                     NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedDidAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.fullscreen])
                     completion?(true)
+                    
                     self.isChangingDisplayMode = false
-                    
-                    
-                    
                 })
             }
         }
         
         self.lastDisplayMode = self.displayMode
         
-        if self.lastDisplayMode == .embedded{
+        if self.lastDisplayMode == .embedded {
             guard let embeddedContentView = self.embeddedContentView else {
                 completion?(false)
                 return
             }
             __toFull(from: embeddedContentView)
-        }else if  self.lastDisplayMode == .float{
+        } else if  self.lastDisplayMode == .float {
             guard let floatContainer = self.floatContainer  else {
                 completion?(false)
                 return
             }
             floatContainer.hidden()
             __toFull(from: floatContainer.floatWindow)
-        }else{
-            //直接进入全屏
+        } else {
+            
+            // player 第一次播放就直接选的全屏
             self.updateCustomView(toDisplayMode: .fullscreen)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.fullscreen])
+            
             self.setControlsHidden(true, animated: false)
             
             self.fullScreenViewController = EZPlayerFullScreenViewController()
@@ -631,19 +653,18 @@ open class EZPlayer: NSObject {
             self.view.frame = self.fullScreenViewController!.view.bounds
             self.fullScreenViewController!.view.addSubview(self.view)
             self.fullScreenViewController!.view.sendSubviewToBack(self.view)
+            
             activityViewController.present(self.fullScreenViewController!, animated: animated, completion: {
                 self.floatContainer?.hidden()
                 self.setControlsHidden(false, animated: true)
                 completion?(true)
                 NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedDidAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.fullscreen])
-                
             })
         }
-        
-        
     }
     
-    open func toEmbedded(animated: Bool = true , completion: ((Bool) -> Swift.Void)? = nil){
+    open func toEmbedded(animated: Bool = true, completion: ((Bool) -> Swift.Void)? = nil) {
+        
         if self.isChangingDisplayMode == true {
             completion?(false)
             return
@@ -657,43 +678,54 @@ open class EZPlayer: NSObject {
             return
         }
         
-        func __endToEmbedded(finished :Bool)  {
+        func __endToEmbedded(finished: Bool)  {
+            
             self.view.removeFromSuperview()
             embeddedContentView.addSubview(self.view)
             self.view.frame = embeddedContentView.bounds
             
             self.setControlsHidden(false, animated: true)
             self.fullScreenViewController = nil
+            
             completion?(finished)
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedDidAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.embedded])
+            
             self.isChangingDisplayMode = false
         }
         
         self.lastDisplayMode = self.displayMode
         
-        if self.lastDisplayMode == .fullscreen{
-            guard let fullScreenViewController = self.fullScreenViewController else{
+        if self.lastDisplayMode == .fullscreen {
+            
+            guard let fullScreenViewController = self.fullScreenViewController else {
                 completion?(false)
                 return
             }
+            
             self.isChangingDisplayMode = true
+            
             self.updateCustomView(toDisplayMode: .embedded)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.embedded])
             
             self.setControlsHidden(true, animated: false)
+            
             if animated {
                 
                 let rect = fullScreenViewController.view.bounds
+                
                 self.view.removeFromSuperview()
+                // 先添加到 keywindow 上面 然后动画完成后再移除 添加到 embeddedContentView 上面
                 UIApplication.shared.keyWindow?.addSubview(self.view)
+                
                 fullScreenViewController.dismiss(animated: false, completion: {
                     
-                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape{
-                        self.view.transform = CGAffineTransform(rotationAngle : fullScreenViewController.currentOrientation == .landscapeLeft ? CGFloat(Double.pi / 2) : -CGFloat(Double.pi / 2))
+                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape {
+                        // 原理同全屏 详见 func __toFull
+                        self.view.transform = CGAffineTransform(rotationAngle: fullScreenViewController.currentOrientation == .landscapeLeft ? CGFloat(Double.pi / 2) : -CGFloat(Double.pi / 2))
                         self.view.frame = CGRect(x: rect.origin.x, y: rect.origin.y, width: rect.size.height, height: rect.size.width)
-                    }else{
+                    } else {
                         self.view.bounds = embeddedContentView.bounds
-                        
                     }
                     
                     UIView.animate(withDuration: EZPlayerAnimatedDuration, animations: {
@@ -704,72 +736,69 @@ open class EZPlayer: NSObject {
                         self.view.center = embeddedContentView.center
                     }, completion: {finished in
                         __endToEmbedded(finished: finished)
-                        
-                        
                     })
                 })
-            }else{
+            } else {
+                
                 fullScreenViewController.dismiss(animated: false, completion: {
                     __endToEmbedded(finished: true)
-                    
-                    
                 })
-                
-                
-                
             }
             
-        }else if self.lastDisplayMode == .float{
-            guard let floatContainer = self.floatContainer  else {
+        } else if self.lastDisplayMode == .float {
+            guard let floatContainer = self.floatContainer else {
                 completion?(false)
                 return
             }
-            floatContainer.hidden()
             
-            //            self.controlView = Bundle(for: EZPlayerControlView.self).loadNibNamed(String(describing: EZPlayerControlView.self), owner: self, options: nil)?.last as? EZPlayerControlView
-            //            self.displayMode = .embedded
+            floatContainer.hidden()
+
             self.isChangingDisplayMode = true
             self.updateCustomView(toDisplayMode: .embedded)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.embedded])
+            
             self.setControlsHidden(true, animated: false)
+            
             if animated {
-                let rect = floatContainer.floatWindow.convert(self.view.frame, to:  UIApplication.shared.keyWindow)
+                
+                let rect = floatContainer.floatWindow.convert(self.view.frame, to: UIApplication.shared.keyWindow)
+                
                 self.view.removeFromSuperview()
+                // 先添加到 keywindow 上面 然后动画完成后再移除 添加到 embeddedContentView 上面
                 UIApplication.shared.keyWindow?.addSubview(self.view)
+                
                 self.view.frame = rect
                 
                 UIView.animate(withDuration: EZPlayerAnimatedDuration, animations: {
                     self.view.bounds = embeddedContentView.bounds
                     self.view.center = embeddedContentView.center
-                    
                 }, completion: {finished in
                     __endToEmbedded(finished: finished)
-                    
                 })
-            }else{
+            } else {
                 __endToEmbedded(finished: true)
-                
             }
-            
-            
-        }else{
+        } else {
             completion?(false)
-            
         }
     }
     
     open func toFloat(animated: Bool = true, completion: ((Bool) -> Swift.Void)? = nil) {
+        
         if self.isChangingDisplayMode == true {
             completion?(false)
             return
         }
+        
         if self.displayMode == .float {
             completion?(false)
             return
         }
         
-        func __endToFloat(finished :Bool)  {
+        func __endToFloat(finished :Bool) {
             self.view.removeFromSuperview()
+            
             self.floatContainerRootViewController?.addVideoView(self.view)
             self.floatContainer?.show()
             self.setControlsHidden(false, animated: true)
@@ -780,51 +809,72 @@ open class EZPlayer: NSObject {
         }
         
         self.lastDisplayMode = self.displayMode
+        
         if self.lastDisplayMode == .embedded {
-            self.configFloatVideo()
             
             self.isChangingDisplayMode = true
+            
+            self.configFloatContainerRootVCAndFloatContainer()
+            
             self.updateCustomView(toDisplayMode: .float)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.float])
             self.setControlsHidden(true, animated: false)
             
-            if animated{
+            if animated {
+                
                 let rect = self.embeddedContentView!.convert(self.view.frame, to: UIApplication.shared.keyWindow)
+                
                 self.view.removeFromSuperview()
+                
                 UIApplication.shared.keyWindow?.addSubview(self.view)
+                
                 self.view.frame = rect
+                
                 UIView.animate(withDuration: EZPlayerAnimatedDuration, animations: {
                     self.view.bounds = self.floatContainer!.floatWindow.bounds
                     self.view.center = self.floatContainer!.floatWindow.center
                 }, completion: {finished in
                     __endToFloat(finished: finished)
                 })
-            }else{
+            } else {
                 __endToFloat(finished: true)
             }
-        }else if self.lastDisplayMode == .fullscreen{
+            
+        } else if self.lastDisplayMode == .fullscreen {
+            
             guard let fullScreenViewController = self.fullScreenViewController else{
                 completion?(false)
                 return
             }
-            self.configFloatVideo()
             
             self.isChangingDisplayMode = true
+            
+            self.configFloatContainerRootVCAndFloatContainer()
+            
             self.updateCustomView(toDisplayMode: .float)
+            
             NotificationCenter.default.post(name: .EZPlayerDisplayModeChangedWillAppear, object: self, userInfo: [Notification.Key.EZPlayerDisplayModeChangedFrom : self.lastDisplayMode, Notification.Key.EZPlayerDisplayModeChangedTo : EZPlayerDisplayMode.float])
+            
             self.setControlsHidden(true, animated: false)
             
-            if animated{
+            if animated {
+                
                 let rect = fullScreenViewController.view.bounds
+                
                 self.view.removeFromSuperview()
+                
                 UIApplication.shared.keyWindow?.addSubview(self.view)
+                
                 fullScreenViewController.dismiss(animated: false, completion: {
-                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape{
-                        self.view.transform = CGAffineTransform(rotationAngle : fullScreenViewController.currentOrientation == .landscapeLeft ? CGFloat(Double.pi / 2) : -CGFloat(Double.pi / 2))
+                    if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape {
+                        // 原理同全屏 详见 func __toFull
+                        self.view.transform = CGAffineTransform(rotationAngle: fullScreenViewController.currentOrientation == .landscapeLeft ? CGFloat(Double.pi / 2) : -CGFloat(Double.pi / 2))
                         self.view.frame = CGRect(x: rect.origin.x, y: rect.origin.y, width: rect.size.height, height: rect.size.width)
-                    }else{
+                    } else {
                         self.view.bounds = self.floatContainer!.floatWindow.bounds
                     }
+                    
                     UIView.animate(withDuration: EZPlayerAnimatedDuration, animations: {
                         if self.autoLandscapeFullScreenLandscape && self.fullScreenMode == .landscape{
                             self.view.transform = CGAffineTransform.identity
@@ -833,44 +883,43 @@ open class EZPlayer: NSObject {
                         self.view.center = self.floatContainer!.floatWindow.center
                     }, completion: {finished in
                         __endToFloat(finished: finished)
-                        
                     })
-                    
                 })
-            }else{
+            } else {
                 fullScreenViewController.dismiss(animated: false, completion: {
                     __endToFloat(finished: true)
                 })
             }
-            
-        }else{
+        } else {
             completion?(false)
         }
-        
     }
-    
-    
-    
     
     // MARK: - public
     
-    open func setControlsHidden(_ hidden: Bool, animated: Bool = false){
+    open func setControlsHidden(_ hidden: Bool, animated: Bool = false) {
         self.controlsHidden = hidden
+        
         (self.controlView as? EZPlayerDelegate)?.player(self, playerControlsHiddenDidChange: hidden ,animated: animated )
+        
         self.delegate?.player(self, playerControlsHiddenDidChange: hidden,animated: animated)
         NotificationCenter.default.post(name: .EZPlayerControlsHiddenDidChange, object: self, userInfo: [Notification.Key.EZPlayerControlsHiddenDidChangeKey: hidden,Notification.Key.EZPlayerControlsHiddenDidChangeByAnimatedKey: animated])
     }
     
     open func updateCustomView(toDisplayMode: EZPlayerDisplayMode? = nil) {
+        
         var nextDisplayMode = self.displayMode
+        
         if toDisplayMode != nil {
             nextDisplayMode = toDisplayMode!
         }
+        
         if let view = self.controlViewForIntercept {
             self.playerView?.controlView = view
             self.displayMode = nextDisplayMode
             return
         }
+        
         switch nextDisplayMode {
         case .embedded:
             // playerView加问号, 其实不关心playerView存不存在, 存在就更新
@@ -882,7 +931,7 @@ open class EZPlayer: NSObject {
             self.playerView?.controlView = self.controlViewForEmbedded
             
         case .fullscreen:
-            if self.playerView?.controlView == nil || self.playerView?.controlView != self.controlViewForFullscreen{
+            if self.playerView?.controlView == nil || self.playerView?.controlView != self.controlViewForFullscreen {
                 if self.controlViewForFullscreen == nil {
                     self.controlViewForFullscreen = self.controlViewForEmbedded ?? Bundle(for: EZPlayerControlView.self).loadNibNamed(String(describing: EZPlayerControlView.self), owner: self, options: nil)?.last as? EZPlayerControlView
                 }
@@ -890,7 +939,7 @@ open class EZPlayer: NSObject {
             self.playerView?.controlView = self.controlViewForFullscreen
             
         case .float:
-            if self.playerView?.controlView == nil || self.playerView?.controlView != self.controlViewForFloat{
+            if self.playerView?.controlView == nil || self.playerView?.controlView != self.controlViewForFloat {
                 if self.controlViewForFloat == nil {
                     self.controlViewForFloat = Bundle(for: EZPlayerFloatView.self).loadNibNamed(String(describing: EZPlayerFloatView.self), owner: self, options: nil)?.last as? UIView
                 }
@@ -912,6 +961,7 @@ open class EZPlayer: NSObject {
         
         self.updateCustomView()//走case .none:,防止没有初始化
         
+        // 监听app的状态
         NotificationCenter.default.addObserver(self, selector: #selector(self.applicationWillEnterForeground(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(self.applicationDidBecomeActive(_:)), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(self.applicationWillResignActive(_:)), name: UIApplication.willResignActiveNotification, object: nil)
@@ -920,7 +970,6 @@ open class EZPlayer: NSObject {
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         NotificationCenter.default.addObserver(self, selector: #selector(self.deviceOrientationDidChange(_:)), name: UIDevice.orientationDidChangeNotification, object: nil)
         
-        //        NotificationCenter.default.addObserver(self, selector: #selector(self.playerDidPlayToEnd(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: playerItem)
         self.timer?.invalidate()
         self.timer = nil
         self.timer = Timer.timerWithTimeInterval(50, block: { [weak self] in
@@ -970,14 +1019,19 @@ open class EZPlayer: NSObject {
         //            self.player!.automaticallyWaitsToMinimizeStalling = false
         //        }
         self.player!.allowsExternalPlayback = self.allowsExternalPlayback
+        
         if self.playerView == nil {
-            self.playerView = EZPlayerView(controlView: self.controlView )
+            self.playerView = EZPlayerView(controlView: self.controlView)
         }
+        
         (self.playerView?.layer as! AVPlayerLayer).videoGravity = AVLayerVideoGravity(rawValue: self.videoGravity.rawValue)
+        
         self.playerView?.config(player: self)
         
         (self.controlView as? EZPlayerDelegate)?.player(self, showLoading: true)
+        
         self.delegate?.player(self, showLoading: true)
+        
         NotificationCenter.default.post(name: .EZPlayerLoadingDidChange, object: self, userInfo: [Notification.Key.EZPlayerLoadingDidChangeKey: true])
         
         self.addPlayerItemTimeObserver()
@@ -1054,11 +1108,11 @@ open class EZPlayer: NSObject {
 
 // MARK: - Notification
 extension EZPlayer {
+    
     @objc fileprivate func playerDidPlayToEnd(_ notifiaction: Notification) {
         
         self.state = .stopped
         NotificationCenter.default.post(name: .EZPlayerPlaybackDidFinish, object: self, userInfo: [Notification.Key.EZPlayerPlaybackDidFinishReasonKey: EZPlayerPlaybackDidFinishReason.playbackEndTime])
-        
     }
     
     @objc fileprivate  func deviceOrientationDidChange(_ notifiaction: Notification){
@@ -1077,7 +1131,6 @@ extension EZPlayer {
             self.toFull(UIDevice.current.orientation)
         case .landscapeRight:
             self.toFull(UIDevice.current.orientation)
-            
         default:
             break
         }
@@ -1114,19 +1167,20 @@ extension EZPlayer {
                     printLog("AVPlayerItem's status is changed: \(item.status.rawValue)")
                     if item.status == .readyToPlay {
                         let lastState = self.state
-                        if self.state != .playing{
+                        if self.state != .playing {
                             self.state = .readyToPlay
                         }
                         //自动播放
-                        if self.autoPlay && lastState == .unknown{
+                        if self.autoPlay && lastState == .unknown {
                             self.play()
                         }
+                        
                     } else if item.status == .failed {
                         self.state = .error(.playerFail)
                     }
                     
                 case #keyPath(AVPlayerItem.loadedTimeRanges):
-                    printLog("AVPlayerItem's loadedTimeRanges is changed")
+//                    printLog("AVPlayerItem's loadedTimeRanges is changed")
                     (self.controlView as? EZPlayerDelegate)?.player(self, bufferDurationDidChange: item.bufferDuration ?? 0, totalDuration: self.duration ?? 0)
                     self.delegate?.player(self, bufferDurationDidChange: item.bufferDuration ?? 0, totalDuration: self.duration ?? 0)
                 case #keyPath(AVPlayerItem.playbackBufferEmpty):
@@ -1169,7 +1223,9 @@ extension EZPlayer {
 
 // MARK: - display Mode
 extension EZPlayer {
-    private func configFloatVideo(){
+    
+    /** 如果 floatContainerRootViewController 不存在，就初始化 floatContainerRootViewController; 如果 floatContainer 不存在，就初始化 floatContainer */
+    private func configFloatContainerRootVCAndFloatContainer() {
         if self.floatContainerRootViewController == nil {
             self.floatContainerRootViewController = EZPlayerFloatContainerRootViewController(nibName: String(describing: EZPlayerFloatContainerRootViewController.self), bundle: Bundle(for: EZPlayerFloatContainerRootViewController.self))
         }

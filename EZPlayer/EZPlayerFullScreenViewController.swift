@@ -9,12 +9,15 @@
 import UIKit
 
 open class EZPlayerFullScreenViewController: UIViewController {
+    
     weak  var player: EZPlayer!
+    
     private var statusbarBackgroundView: UIView!
+    
     public var preferredlandscapeForPresentation = UIInterfaceOrientation.landscapeLeft
+    
     public var currentOrientation = UIDevice.current.orientation
-
-
+    
     // MARK: - Life cycle
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -66,7 +69,7 @@ open class EZPlayerFullScreenViewController: UIViewController {
         }
     }
 
-    override open var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation{
+    override open var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
         self.currentOrientation = preferredlandscapeForPresentation == .landscapeLeft ? .landscapeRight : .landscapeLeft
 
         switch self.player.fullScreenMode {
