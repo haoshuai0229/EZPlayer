@@ -300,7 +300,7 @@ open class EZPlayer: NSObject {
                 
                 switch state {
                     
-                case  .readyToPlay, .playing, .pause, .seekingForward, .seekingBackward, .stopped, .bufferFinished:
+                case  .readyToPlay, .playing, .pause, .stopped, .bufferFinished:
                     
                     (self.controlView as? EZPlayerDelegate)?.player(self, showLoading: false)
                     
